@@ -1,0 +1,30 @@
+---
+- name: Copy mysql directory
+  copy:
+    src: mysql
+    dest: /root/
+
+- name: Add execution permission
+  file:
+    path: /root/mysql/run.sh
+    mode: '0755'
+
+- name: Run MySQL containers
+  command: /root/mysql/run.sh --name "{{ item.name }}" --port "{{ item.port | default('3306') }}" --password "{{ item.root_password }}" --version "{{ item.version | default('latest') }}"
+  loop: "{{ mysql_containers }}"
+
+- name: Wait until MySQL containers are ready
+  command: docker exec mysql-{{ item.name }} mysql -u root -p{{ item.root_password }} -e "SELECT 1;"
+  register: result
+  until: result.rc == 0
+  retries: 10
+  delay: 3
+  loop: "{{ mysql_containers }}"
+
+- name: Create databases
+  command: docker exec {{ item.container }} mysql -u root -p{{ item.root_password }} -e "CREATE DATABASE IF NOT EXISTS {{ item.database }};"
+  loop: "{{ mysql_databases }}"
+
+- name: Create users
+  command: docker exec {{ item.container }} mysql -u root -p{{ item.root_password }} -e "CREATE USER IF NOT EXISTS '{{ item.user }}'@'%' IDENTIFIED BY '{{ item.password }}'; GRANT ALL ON {{ item.database }}.* TO '{{ item.user }}'@'%'; FLUSH PRIVILEGES;"
+  loop: "{{ mysql_users }}"
