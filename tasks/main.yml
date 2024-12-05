@@ -12,6 +12,7 @@
 - name: Run MySQL containers
   command: /root/mysql/run.sh --name "{{ item.name }}" --port "{{ item.port | default('3306') }}" --password "{{ item.root_password }}" --version "{{ item.version | default('latest') }}"
   loop: "{{ mysql_containers }}"
+  when: mysql_containers is defined and mysql_containers | length > 0
 
 - name: Wait until MySQL containers are ready
   command: docker exec mysql-{{ item.name }} mysql -u root -p{{ item.root_password }} -e "SELECT 1;"
@@ -20,11 +21,14 @@
   retries: 10
   delay: 3
   loop: "{{ mysql_containers }}"
+  when: mysql_containers is defined and mysql_containers | length > 0
 
 - name: Create databases
   command: docker exec {{ item.container }} mysql -u root -p{{ item.root_password }} -e "CREATE DATABASE IF NOT EXISTS {{ item.database }};"
   loop: "{{ mysql_databases }}"
+  when: mysql_databases is defined and mysql_databases | length > 0
 
 - name: Create users
   command: docker exec {{ item.container }} mysql -u root -p{{ item.root_password }} -e "CREATE USER IF NOT EXISTS '{{ item.user }}'@'%' IDENTIFIED BY '{{ item.password }}'; GRANT ALL ON {{ item.database }}.* TO '{{ item.user }}'@'%'; FLUSH PRIVILEGES;"
   loop: "{{ mysql_users }}"
+  when: mysql_users is defined and mysql_users | length > 0
